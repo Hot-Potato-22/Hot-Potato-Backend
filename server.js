@@ -69,6 +69,7 @@ app.post('/login', async(req, res) => {
     }
 });
 
+// Route to get all players from database
 app.get('/players', async(req, res) => {
     try {
         const databaseResult = await pool.query(`SELECT * FROM players`)
@@ -79,7 +80,87 @@ app.get('/players', async(req, res) => {
     } catch(error){
         res.status(500).json({ message: `${error.message }` });
     }
-})
+});
+
+/*
+Route to create / host a game
+Requirements for the body to use: 
+- map_id -> used to determine which map the players will play in
+- room_code -> used to let other players join the room 
+(upon creating the game we will generate a room_code for the player to share but as of right now, it's static)
+*/
+app.post('/game', async(req, res) => {
+    const roomCode = "test";
+    const mapSelected = req.body.map_id;
+    try {
+        const sql = `INSERT INTO games (map_id, room_code) VALUES ($1, $2) returning *;`
+        const databaseResult = await pool.query(sql, [mapSelected, roomCode]);
+        res.status(201).json({
+          game: databaseResult.rows  
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+/*
+Route to add players in the game lobby to the database
+Requirements for the body to use:
+- player_id -> used to be inserted into the db
+- game_id -> is in the url that will be used to insert into the db as well
+*/
+app.post('/game/:id/lobby', async(req, res) => {
+    const playerId = req.body.player_id;
+    const gameId = req.params.id
+    try {
+        const sql = `INSERT INTO "gamePlayers" (game_id, player_id) VALUES ($1, $2) returning *;`
+        const databaseResult = await pool.query(sql, [gameId, playerId]);
+        console.log(databaseResult);
+        res.status(201).json({
+            data: databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+app.post('/join', async(req, res) => {
+    const roomCode = req.body.room_code
+    try {
+        const sql = `SELECT * FROM games where room_code = $1`
+        const databaseResult = await pool.query(sql, [roomCode])
+        console.log(databaseResult);
+        if(!databaseResult.rows[0]){
+            return res.status(401).json({
+                message: "Incorrect room code",
+            });
+        }
+        let isRoomCodeCorrect = false
+        if(roomCode === databaseResult.rows[0].room_code){
+            isRoomCodeCorrect = true;
+            return res.status(200).json({
+                data: databaseResult.rows[0],
+                roomCode
+            });
+        }
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+// Route to get all existing games from the database
+app.get('/games', async(req, res) => {
+    try {
+        const databaseResult = await pool.query(`SELECT * FROM games`);
+        console.log(databaseResult.rows);
+        res.json({
+            data: databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`)
