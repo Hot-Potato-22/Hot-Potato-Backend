@@ -124,6 +124,11 @@ app.post('/game/:id/lobby', async(req, res) => {
     }
 });
 
+/*
+Route to join a existing game
+Requirements for the body to use: 
+- room_code -> used to be search for the game and enter the game if room_code given is correct.
+*/
 app.post('/join', async(req, res) => {
     const roomCode = req.body.room_code
     try {
@@ -148,6 +153,85 @@ app.post('/join', async(req, res) => {
     }
 });
 
+/*
+Route to remove a player from a game / room
+Requirements for body to use:
+- player_id -> used to remove that player from the database
+(once player joins back they will be added onto the gamesPlayer table)
+*/
+app.delete('/leave/:id', async(req, res) => {
+    const gameId = req.params.id;
+    const playerId = req.body.player_id;
+    try{
+        const sql = `DELETE FROM "gamePlayers" WHERE player_id = $1`
+        const databaseResult = await pool.query(sql, [playerId]);
+        console.log(databaseResult);
+        res.sendStatus(204);
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+/*
+Route to update the games_won column for the players who won a game
+Requirements for body to use:
+- player_id -> used to determine whose stats are we updating?
+*/
+app.patch('/win', async(req, res) => {
+    const playerId = req.body.player_id;
+    try {
+        const sql = `UPDATE players SET games_won = games_won + 1 WHERE player_id = $1`
+        const databaseResult = await pool.query(sql, [playerId]);
+        console.log(databaseResult);
+        res.status(200).json({
+            databaseResult
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+/*
+Route to update the games_lost column for the players who lost a game
+Requirements for body to use:
+- player_id -> used to determine whose stats are we updating?
+*/
+app.patch('/lose', async(req, res) => {
+    const playerId = req.body.player_id;
+    try {
+        const sql = `UPDATE players SET games_lost = games_lost + 1 WHERE player_id = $1`
+        const databaseResult = await pool.query(sql, [playerId]);
+        console.log(databaseResult);
+        res.status(200).json({
+            databaseResult
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+/*
+Route to update player profile picture
+Requirements for the body to use: 
+- player_id is taken from url -> used to determine whose profile picture are we changing / assigning
+- pfp_link -> a link of the picture the player wants as their profile picture
+-  
+*/
+app.patch('/player/:id/picture', async(req, res) => {
+    const playerId = req.params.id;
+    const playerPic = req.body.pfp_link;
+    try{
+        const sql = `UPDATE players SET pfp_link = $2 WHERE player_id = $1`
+        const databaseResult = await pool.query(sql, [playerId, playerPic])
+        console.log(databaseResult);
+        res.status(200).json({
+            databaseResult
+        })
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
 // Route to get all existing games from the database
 app.get('/games', async(req, res) => {
     try {
@@ -161,6 +245,19 @@ app.get('/games', async(req, res) => {
     }
 });
 
+// Route to get the players and have them ordered from games_won descending
+// Return the player's username and the number of games won
+app.get('/leaderboard', async(req, res) => {
+    try{
+        const databaseResult = await pool.query(`SELECT username, games_won FROM players ORDER BY games_won DESC`);
+        console.log(databaseResult);
+        res.json({
+            data: databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`)
