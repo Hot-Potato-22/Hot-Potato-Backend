@@ -21,7 +21,7 @@ Requirements for the body to use:
 app.post('/signup', async(req, res) => {
     const playerUsername = req.body.username;
     const playerPassword = req.body.password;
-    const saltRounds = 10 // Required for authentication
+    const saltRounds = 10; // Required for authentication
     try {
         const hashedPassword = await bcrypt.hash(playerPassword, saltRounds);
         const sql = `INSERT INTO players (username, password, pfp_link, games_won, games_lost) VALUES ($1, $2, $3, $4, $5) returning *;`
