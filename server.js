@@ -311,11 +311,13 @@ app.get('/games', async(req, res) => {
     }
 });
 
+// Route to get a specific game's map 
+// (Games table only obtains map_id so with this we can connect the map_id to the map_id in the maps table to obtain the map data)
 app.get('/game/:id/map/:mapid', async(req, res) => {
     const id = req.params.id
     const mapId = req.params.mapid
     try{
-        const sql = (`SELECT map_img FROM maps join games on game_id = $1 where $2 = maps.map_id`)
+        const sql = (`SELECT * FROM maps join games on game_id = $1 where $2 = maps.map_id`)
         const databaseResult = await pool.query(sql, [id, mapId])
         console.log(databaseResult)
         res.status(200).json({
