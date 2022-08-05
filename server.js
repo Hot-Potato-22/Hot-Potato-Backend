@@ -95,11 +95,12 @@ Requirements for the body to use:
 (upon creating the game we will generate a room_code for the player to share but as of right now, it's static)
 */
 app.post('/game', async(req, res) => {
-    const roomCode = "test";
-    const mapSelected = req.body.map_id;
+    const mapId = req.body.map_id;
+    const roomCode = req.body.room_code; // temp static code, we'll generate a room code for players
+    const hostedBy = req.body.hosted_by;
     try {
-        const sql = `INSERT INTO games (map_id, room_code) VALUES ($1, $2) returning *;`
-        const databaseResult = await pool.query(sql, [mapSelected, roomCode]);
+        const sql = `INSERT INTO games (map_id, room_code, hosted_by, is_public) VALUES ($1, $2, $3, $4) returning *;`
+        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, false]);
         res.status(201).json({
           game: databaseResult.rows  
         });
@@ -177,6 +178,24 @@ app.delete('/leave/:id', async(req, res) => {
     }
 });
 
+
+/*
+Route to remove a game from the database
+Rquirements to use:
+-> game_id passed through the route
+*/
+app.delete('/game/:id', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `DELETE FROM games WHERE game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        console.log(databaseResult);
+        res.sendStatus(204);
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
 /*
 Route to update the games_won column for the players who won a game
 Requirements for body to use:
@@ -237,6 +256,48 @@ app.patch('/player/:id/picture', async(req, res) => {
     }
 });
 
+app.patch('/map/:id/image', async(req, res) => {
+    const mapId = req.params.id;
+    const mapImage = req.body.map_img;
+    try{
+        const sql = `UPDATE maps SET map_img = $2 WHERE map_id = $1`
+        const databaseResult = await pool.query(sql, [mapId, mapImage])
+        console.log(databaseResult);
+        res.status(200).json({
+            databaseResult
+        })
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+// Route to get all the maps from the database
+app.get('/maps', async(req, res) => {
+    try{
+        const databaseResult = await pool.query(`SELECT * FROM maps`);
+        console.log(databaseResult.rows);
+        res.json({
+            data: databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
+// Route to get a specific map from the database
+app.get('/maps/:id', async(req, res) => {
+    const mapId = req.params.id;
+    try{
+        const sql = `SELECT * FROM maps where map_id = $1`
+        const databaseResult = await pool.query(sql, [mapId])
+        res.status(200).json({
+            gameInfo : databaseResult.rows[0]
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
 // Route to get all existing games from the database
 app.get('/games', async(req, res) => {
     try {
@@ -244,6 +305,37 @@ app.get('/games', async(req, res) => {
         console.log(databaseResult.rows);
         res.json({
             data: databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+// Route to get a specific game's map 
+// (Games table only obtains map_id so with this we can connect the map_id to the map_id in the maps table to obtain the map data)
+app.get('/game/:id/map/:mapid', async(req, res) => {
+    const id = req.params.id
+    const mapId = req.params.mapid
+    try{
+        const sql = (`SELECT * FROM maps join games on game_id = $1 where $2 = maps.map_id`)
+        const databaseResult = await pool.query(sql, [id, mapId])
+        console.log(databaseResult)
+        res.status(200).json({
+            data: databaseResult.rows
+        })
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
+// Route to get a specific game from the database
+app.get('/games/:id', async(req, res) => {
+    const gameId = req.params.id
+    try{
+        const sql = `SELECT * FROM games where game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        res.status(200).json({
+            gameInfo : databaseResult.rows[0]
         });
     } catch(error){
         res.status(500).json({ message: `${error.message }` });
