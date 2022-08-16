@@ -51,7 +51,7 @@ Requirements for the body to use:
 app.post('/login', async(req, res) => {
     try{
         const { username, password } = req.body;
-        const sql = `SELECT * from players where username $1`
+        const sql = `SELECT * from players where username = $1`
         const databaseResult = await pool.query(sql, [username]);
         if(!databaseResult.rows[0]){
             return res.status(401).json({
@@ -87,20 +87,41 @@ app.get('/players', async(req, res) => {
     }
 });
 
+
+
+
 /*
 Route to create / host a game
 Requirements for the body to use: 
 - map_id -> used to determine which map the players will play in
 - room_code -> used to let other players join the room 
 (upon creating the game we will generate a room_code for the player to share but as of right now, it's static)
+
+{
+    "game": [
+        {
+            "game_id": 166,
+            "map_id": 1,
+            "room_code": "123456",
+            "hosted_by": null,
+            "is_public": false,
+            "host_id": 1
+        }
+    ]
+}
+
 */
 app.post('/game', async(req, res) => {
     const mapId = req.body.map_id;
-    const roomCode = req.body.room_code; // temp static code, we'll generate a room code for players
+    const roomCode = req.body.room_code;
     const hostedBy = req.body.hosted_by;
+    const hostId = req.body.host_id;
     try {
-        const sql = `INSERT INTO games (map_id, room_code, hosted_by, is_public) VALUES ($1, $2, $3, $4) returning *;`
-        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, false]);
+        const sql = `INSERT INTO games (map_id, room_code, hosted_by, host_id, is_public) VALUES ($1, $2, $3, $4, $5) returning *;`
+        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, hostId, true]);
+        const gameId = databaseResult.rows[0].game_id
+        const sql2 = `INSERT INTO "gamePlayers" (game_id, player_id) VALUES ($1, $2) returning *;`
+        const databaseResult2 = await pool.query(sql2, [gameId, hostId]);
         res.status(201).json({
           game: databaseResult.rows  
         });
@@ -197,6 +218,24 @@ app.delete('/game/:id', async(req, res) => {
 });
 
 /*
+Route to delete all players from a specific game then deletes the game
+*/
+app.delete('/game/:id/players', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `DELETE FROM "gamePlayers" WHERE game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        console.log(databaseResult);
+        const sql2 = `DELETE FROM games WHERE game_id = $1`
+        const databaseResult2 = await pool.query(sql2, [gameId])
+        console.log(databaseResult2);
+        res.status(204);
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+/*
 Route to update the games_won column for the players who won a game
 Requirements for body to use:
 - player_id -> used to determine whose stats are we updating?
@@ -256,6 +295,7 @@ app.patch('/player/:id/picture', async(req, res) => {
     }
 });
 
+// Route to set a specific map's image
 app.patch('/map/:id/image', async(req, res) => {
     const mapId = req.params.id;
     const mapImage = req.body.map_img;
@@ -270,6 +310,36 @@ app.patch('/map/:id/image', async(req, res) => {
         res.status(500).json({ message: `${error.message }` });
     }
 });
+
+// Route to make specific game public
+app.patch('/game/:id/public', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `UPDATE games SET is_public = true WHERE game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        console.log(databaseResult);
+        res.status(200).json({
+            databaseResult
+        })
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
+// Route to make a specific game private
+app.patch('/game/:id/private', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `UPDATE games SET is_public = false WHERE game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        console.log(databaseResult);
+        res.status(200).json({
+            databaseResult
+        })
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
 
 // Route to get all the maps from the database
 app.get('/maps', async(req, res) => {
@@ -328,6 +398,21 @@ app.get('/game/:id/map/:mapid', async(req, res) => {
     }
 })
 
+app.get('/game/players/:playerid', async(req, res) => {
+    const playerId = req.params.playerid
+    try{
+        const sql = (`SELECT * FROM players join "gamePlayers" on players.player_id = $1 where $1 = "gamePlayers".player_id`)
+        const databaseResult = await pool.query(sql, [playerId])
+        console.log(databaseResult)
+        res.status(200).json({
+            data: databaseResult.rows
+        })
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
+
 // Route to get a specific game from the database
 app.get('/games/:id', async(req, res) => {
     const gameId = req.params.id
@@ -341,6 +426,33 @@ app.get('/games/:id', async(req, res) => {
         res.status(500).json({ message: `${error.message }` });
     }
 });
+
+app.get('/games/:id/players', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `SELECT * FROM "gamePlayers" where game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        res.status(200).json({
+            playerList : databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
+app.get('/games/:id/players/playernames', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `SELECT players.username FROM players inner join "gamePlayers" on players.player_id = "gamePlayers".player_id where "gamePlayers".game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        res.status(200).json({
+            playerList : databaseResult.rows
+        });
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
 
 // Route to get the players and have them ordered from games_won descending
 // Return the player's username and the number of games won
