@@ -200,6 +200,18 @@ app.delete('/leave/:id', async(req, res) => {
 });
 
 
+app.delete('/player/:id', async(req, res) => {
+    const playerId = req.params.id;
+    try{
+        const sql = `DELETE FROM players WHERE player_id = $1`
+        const databaseResult = await pool.query(sql, [playerId])
+        console.log(databaseResult)
+        res.sendStatus(204);
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+})
+
 /*
 Route to remove a game from the database
 Rquirements to use:
