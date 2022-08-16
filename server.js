@@ -87,20 +87,41 @@ app.get('/players', async(req, res) => {
     }
 });
 
+
+
+
 /*
 Route to create / host a game
 Requirements for the body to use: 
 - map_id -> used to determine which map the players will play in
 - room_code -> used to let other players join the room 
 (upon creating the game we will generate a room_code for the player to share but as of right now, it's static)
+
+{
+    "game": [
+        {
+            "game_id": 166,
+            "map_id": 1,
+            "room_code": "123456",
+            "hosted_by": null,
+            "is_public": false,
+            "host_id": 1
+        }
+    ]
+}
+
 */
 app.post('/game', async(req, res) => {
     const mapId = req.body.map_id;
-    const roomCode = req.body.room_code; // temp static code, we'll generate a room code for players
+    const roomCode = req.body.room_code;
     const hostedBy = req.body.hosted_by;
+    const hostId = req.body.host_id;
     try {
-        const sql = `INSERT INTO games (map_id, room_code, hosted_by, is_public) VALUES ($1, $2, $3, $4) returning *;`
-        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, false]);
+        const sql = `INSERT INTO games (map_id, room_code, hosted_by, host_id, is_public) VALUES ($1, $2, $3, $4, $5) returning *;`
+        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, hostId, true]);
+        const gameId = databaseResult.rows[0].game_id
+        const sql2 = `INSERT INTO "gamePlayers" (game_id, player_id) VALUES ($1, $2) returning *;`
+        const databaseResult2 = await pool.query(sql2, [gameId, hostId]);
         res.status(201).json({
           game: databaseResult.rows  
         });
@@ -191,6 +212,24 @@ app.delete('/game/:id', async(req, res) => {
         const databaseResult = await pool.query(sql, [gameId])
         console.log(databaseResult);
         res.sendStatus(204);
+    } catch(error){
+        res.status(500).json({ message: `${error.message }` });
+    }
+});
+
+/*
+Route to delete all players from a specific game then deletes the game
+*/
+app.delete('/game/:id/players', async(req, res) => {
+    const gameId = req.params.id;
+    try {
+        const sql = `DELETE FROM "gamePlayers" WHERE game_id = $1`
+        const databaseResult = await pool.query(sql, [gameId])
+        console.log(databaseResult);
+        const sql2 = `DELETE FROM games WHERE game_id = $1`
+        const databaseResult2 = await pool.query(sql2, [gameId])
+        console.log(databaseResult2);
+        res.status(204);
     } catch(error){
         res.status(500).json({ message: `${error.message }` });
     }
