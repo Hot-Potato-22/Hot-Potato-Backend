@@ -483,6 +483,9 @@ app.get('/leaderboard', async(req, res) => {
 app.get('/', async(req, res) => {
     console.log("hello")
 })
+
+
+//socket Io server
 const io = new Server(server,{
     cors:{
         origin:"http://localhost:3000",
@@ -491,23 +494,64 @@ const io = new Server(server,{
 
     }
 })
+//makes room code
+function makeid (){
+    let code = ""
+        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        const charactersLength = characters.length;
+    
+        for(let i=0; i<6;i++){
+            code += characters.charAt(Math.floor(Math.random() * charactersLength))
+        }
+        console.log(code)
+        return code
+}
+const clientRooms = {}
+
 io.on('connection', (socket)=>{
 console.log(`User connected ${socket.id}`)
 
-// socket.on('send_message',(data)=>{
-//     console.log(data)
-   
-//     socket.broadcast.emit('received_message', data)
-// })
-socket.on('join_room', (data)=>{
-    socket.join(data)
-})
-socket.on('send_message', (data)=>{
-    socket.to(data.room).emit('received_message', data)
+socket.on('newGame', handleNewGame)
+socket.on('joinGame', handleJoinGame)
+
+function handleJoinGame(gameCode){
+const room = io.sockets.adapter.rooms[gameCode]
+let allUsers;
+if(room){
+    allUsers = room.sockets
+}
+let numClients = 0
+if(allUsers){
+    numClients = Object.keys(allUsers).length
+}
+if(numClients === 0 ){
+    socket.emit('unknownGame')
+    return
+}else if(numClients > 4) {
+socket.emit('tooManyPlayers')
+return
+}
+clientRooms[socket.id] = gameCode
+socket.join(gameCode)
+let clientNum = socket.number ++
+socket.emit('init', clientNum)
+
+}
+
+function handleNewGame(){
+    let roomName = makeid()
+    clientRooms[socket.id] = roomName
+    socket.emit('gameCode', roomName)
+    socket.join(roomName)
+    let clientNum = socket.number = 1
+    socket.emit('init' , clientNum)
+}
 })
 
 
-})
+
+
+
 
 server.listen(3002, ()=> {
     console.log('Socket.io server is running ')
