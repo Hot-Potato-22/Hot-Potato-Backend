@@ -118,7 +118,7 @@ app.post('/game', async(req, res) => {
     const hostId = req.body.host_id;
     try {
         const sql = `INSERT INTO games (map_id, room_code, hosted_by, host_id, is_public) VALUES ($1, $2, $3, $4, $5) returning *;`
-        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, hostId, true]);
+        const databaseResult = await pool.query(sql, [mapId, roomCode, hostedBy, hostId, false]);
         const gameId = databaseResult.rows[0].game_id
         const sql2 = `INSERT INTO "gamePlayers" (game_id, player_id) VALUES ($1, $2) returning *;`
         const databaseResult2 = await pool.query(sql2, [gameId, hostId]);
@@ -170,6 +170,10 @@ app.post('/join', async(req, res) => {
         let isRoomCodeCorrect = false
         if(roomCode === databaseResult.rows[0].room_code){
             isRoomCodeCorrect = true;
+            const gameId = databaseResult.rows[0].game_id
+            const playerId = req.body.player_id
+            const sql2 = `INSERT INTO "gamePlayers" (game_id, player_id) VALUES ($1, $2) returning *;`
+            const databaseResult2 = await pool.query(sql2, [gameId, playerId])
             return res.status(200).json({
                 data: databaseResult.rows[0],
                 roomCode
