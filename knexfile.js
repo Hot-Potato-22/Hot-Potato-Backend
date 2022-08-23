@@ -9,7 +9,7 @@ module.exports = {
     client: 'postgresql',
     connection: {
       database: 'hotpotato', // replace with your db name
-      user: 'khaliaparris', // replace with your user
+      user: 'liam', // replace with your user
       password: 'password' // replace with your password 
     }
   },

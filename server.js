@@ -236,8 +236,8 @@ app.delete('/game/:id', async(req, res) => {
 /*
 Route to delete all players from a specific game then deletes the game
 */
-app.delete('/game/:id/players', async(req, res) => {
-    const gameId = req.params.id;
+app.delete('/game', async(req, res) => {
+    const gameId = req.body.game_id
     try {
         const sql = `DELETE FROM "gamePlayers" WHERE game_id = $1`
         const databaseResult = await pool.query(sql, [gameId])
@@ -245,7 +245,7 @@ app.delete('/game/:id/players', async(req, res) => {
         const sql2 = `DELETE FROM games WHERE game_id = $1`
         const databaseResult2 = await pool.query(sql2, [gameId])
         console.log(databaseResult2);
-        res.status(204);
+        res.sendStatus(204);
     } catch(error){
         res.status(500).json({ message: `${error.message }` });
     }
