@@ -11,15 +11,21 @@ var authCheck = require('./middleware/checkAuth');
 var _require = require('./utils'),
     generateToken = _require.generateToken;
 
-var _require2 = require('./db'),
-    pool = _require2.pool;
+var _require2 = require('./users'),
+    addUser = _require2.addUser,
+    removeUser = _require2.removeUser,
+    getUser = _require2.getUser,
+    getUsersInRoom = _require2.getUsersInRoom;
+
+var _require3 = require('./db'),
+    pool = _require3.pool;
 
 var http = require('http');
 
 var app = express();
 
-var _require3 = require('socket.io'),
-    Server = _require3.Server;
+var _require4 = require('socket.io'),
+    Server = _require4.Server;
 
 var PORT = 3032;
 var server = http.createServer(app);
@@ -1088,343 +1094,64 @@ var io = new Server(server, {
     credentials: true
   }
 }); //makes room code
-
-var players = {};
-var star = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starTwo = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starThree = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starFour = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starFive = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starSix = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starSeven = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starEight = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starNine = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var starTen = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var sandwich = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-};
-var juice = {
-  x: Math.floor(Math.random() * 1350) + 50,
-  y: Math.floor(Math.random() * 700) + 50
-}; // app.use(express.static(__dirname + '/public'));
-// app.get('/', function (req, res) {
-//   res.sendFile(__dirname + '/index.html');
-// });
+//uno game server logic
 
 io.on('connection', function (socket) {
-  console.log('a user connected'); // create a new player and add it to our players object
+  socket.on('join', function (payload, callback) {
+    var numberOfUsersInRoom = getUsersInRoom(payload.room).length;
 
-  players[socket.id] = {
-    rotation: 0,
-    x: Math.floor(Math.random() * 1350) + 50,
-    y: Math.floor(Math.random() * 700) + 50,
-    playerId: socket.id,
-    playerScore: 0,
-    team: Math.floor(Math.random() * 2) == 0 ? 'red' : 'blue'
-  };
-  currPlayers = Object.keys(players);
-  numPlayers = currPlayers.length;
-  console.log(currPlayers);
-  console.log(numPlayers);
-  players[socket.id]["playerNum"] = numPlayers;
-  console.log(players);
-  potato = {
-    rotation: 0,
-    x: Math.floor(Math.random() * 1350) + 50,
-    y: Math.floor(Math.random() * 700) + 50
-  }; // send the players object to the new player
+    var _addUser = addUser({
+      id: socket.id,
+      name: numberOfUsersInRoom === 0 ? 'Player 1' : 'Player 2',
+      room: payload.room
+    }),
+        error = _addUser.error,
+        newUser = _addUser.newUser;
 
-  socket.emit('currentPlayers', players); // send the star object to the new player
-
-  socket.emit('starLocation', star);
-  socket.emit('starTwoLocation', starTwo);
-  socket.emit('starThreeLocation', starThree);
-  socket.emit('starFourLocation', starFour);
-  socket.emit('starFiveLocation', starFive);
-  socket.emit('starSixLocation', starSix);
-  socket.emit('starSevenLocation', starSeven);
-  socket.emit('starEightLocation', starEight);
-  socket.emit('starNineLocation', starNine);
-  socket.emit('starTenLocation', starTen); //socket.emit('star3Location', star3);
-
-  socket.emit('potatoLocation', potato);
-  socket.emit('potatoMovement', potato); //setTimeout(() => {  
-
-  socket.emit('sandwichLocation', sandwich); //}, 5000);
-
-  socket.emit('juiceLocation', juice); // send the current scores
-  //theScore = players[socket.id].playerScore
-
-  socket.emit('playerScoreUpdate', {
-    theScore: players[socket.id].playerScore,
-    playerNum: players[socket.id].playerNum
-  }); // update all other players of the new player
-
-  socket.broadcast.emit('newPlayer', players[socket.id]); // when a player disconnects, remove them from our players object
-
-  socket.on('disconnect', function () {
-    console.log('user disconnected'); // remove this player from our players object
-
-    delete players[socket.id]; // emit a message to all players to remove this player
-
-    io.emit('disconnected', socket.id);
-  }); // when a player moves, update the player data
-
-  socket.on('playerMovement', function (movementData) {
-    players[socket.id].x = movementData.x;
-    players[socket.id].y = movementData.y;
-    players[socket.id].rotation = movementData.rotation; // emit a message to all players about the player that moved
-
-    socket.broadcast.emit('playerMoved', players[socket.id]);
-  }); // socket.on('starCollected', function () {
-  //   if (players[socket.id].team === 'red') {
-  //     scores.red += 10;
-  //   } else {
-  //     scores.blue += 10;
-  //   }
-  //   star.x = Math.floor(Math.random() * 1350) + 50;
-  //   star.y = Math.floor(Math.random() * 700) + 50;
-  //   io.emit('starLocation', star);
-  //   io.emit('scoreUpdate', scores);
-  // });
-
-  socket.on('starCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    star.x = Math.floor(Math.random() * 1350) + 50;
-    star.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starLocation', star);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
+    if (error) return callback(error);
+    socket.join(newUser.room);
+    io.to(newUser.room).emit('roomData', {
+      room: newUser.room,
+      users: getUsersInRoom(newUser.room)
     });
-  });
-  socket.on('starTwoCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starTwo.x = Math.floor(Math.random() * 1350) + 50;
-    starTwo.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starTwoLocation', starTwo);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
+    socket.emit('currentUserData', {
+      name: newUser.name
     });
+    callback();
   });
-  socket.on('starThreeCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starThree.x = Math.floor(Math.random() * 1350) + 50;
-    starThree.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starThreeLocation', starThree);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
+  socket.on('initGameState', function (gameState) {
+    var user = getUser(socket.id);
+    if (user) io.to(user.room).emit('initGameState', gameState);
+  });
+  socket.on('updateGameState', function (gameState) {
+    var user = getUser(socket.id);
+    if (user) io.to(user.room).emit('updateGameState', gameState);
+  });
+  socket.on('sendMessage', function (payload, callback) {
+    var user = getUser(socket.id);
+    io.to(user.room).emit('message', {
+      user: user.name,
+      text: payload.message
     });
+    callback();
   });
-  socket.on('starFourCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starFour.x = Math.floor(Math.random() * 1350) + 50;
-    starFour.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starFourLocation', starFour);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
+  socket.on('disconnected', function () {
+    var user = removeUser(socket.id);
+    if (user) io.to(user.room).emit('roomData', {
+      room: user.room,
+      users: getUsersInRoom(user.room)
     });
-  });
-  socket.on('starFiveCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starFive.x = Math.floor(Math.random() * 1350) + 50;
-    starFive.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starFiveLocation', starFive);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
-    });
-  });
-  socket.on('starSixCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starSix.x = Math.floor(Math.random() * 1350) + 50;
-    starSix.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starSixLocation', starSix);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
-    });
-  });
-  socket.on('starSevenCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starSeven.x = Math.floor(Math.random() * 1350) + 50;
-    starSeven.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starSevenLocation', starSeven);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
-    });
-  });
-  socket.on('starEightCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starEight.x = Math.floor(Math.random() * 1350) + 50;
-    starEight.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starEightLocation', starEight);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
-    });
-  });
-  socket.on('starNineCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starNine.x = Math.floor(Math.random() * 1350) + 50;
-    starNine.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starNineLocation', starNine);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
-    });
-  });
-  socket.on('starTenCollected', function () {
-    if (players[socket.id].playerNum == 1) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 2) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 3) {
-      players[socket.id].playerScore += 10;
-    } else if (players[socket.id].playerNum == 4) {
-      players[socket.id].playerScore += 10;
-    }
-
-    starTen.x = Math.floor(Math.random() * 1350) + 50;
-    starTen.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('starTenLocation', starTen);
-    io.emit('playerScoreUpdate', {
-      theScore: players[socket.id].playerScore,
-      playerNum: players[socket.id].playerNum
-    });
-  });
-  socket.on('potatoCollected', function () {
-    potato.x = Math.floor(Math.random() * 1350) + 50;
-    potato.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('potatoLocation', potato);
-  });
-  socket.on('sandwichCollected', function () {
-    sandwich.x = Math.floor(Math.random() * 1350) + 50;
-    sandwich.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('sandwichLocation', sandwich);
-  });
-  socket.on('juiceCollected', function () {
-    juice.x = Math.floor(Math.random() * 1350) + 50;
-    juice.y = Math.floor(Math.random() * 700) + 50;
-    io.emit('juiceLocation', juice);
   });
 });
+
+if (process.env.NODE_ENV === 'production') {
+  //set static folder
+  app.use(express["static"]('client/build'));
+  app.get('*', function (req, res) {
+    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
+  });
+}
+
 server.listen(3002, function () {
   console.log('Socket.io server is running ');
 });
